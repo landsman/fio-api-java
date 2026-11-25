@@ -49,6 +49,23 @@ var throttle = new TokenThrottle<FioToken>();
 if (throttle.tryAcquire(token)) { fio.transactionsSinceLastDownload(token); }
 ```
 
+## Spring Boot
+
+`cz.insuit:fio-api-spring-boot-starter` brings the client and gives the application a `FioClient` bean and a shared
+`TokenThrottle<FioToken>`. Nothing has to be set:
+
+```yaml
+fio:
+  base-uri: http://localhost:8089/v1/rest   # only for a mock server; production otherwise
+  request-timeout: 30s                      # 60 seconds otherwise
+  token: ${FIO_TOKEN}                        # only for an app that reads one account; gives a FioToken bean
+```
+
+An application's own bean of either type replaces the starter's, a `TokenThrottle<String>` too, for one throttle
+that also guards another bank's tokens. Spring matches the type argument, so such an app has no
+`TokenThrottle<FioToken>` left and injects its throttle as `TokenThrottle<String>`. Compiled against Spring Boot 3.5,
+and tested only there so far.
+
 ## Failures
 
 `FioException` is sealed, one subtype per thing to do, so a `switch` over it is exhaustive:
