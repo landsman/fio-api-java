@@ -19,7 +19,7 @@ class TokenThrottleTest {
     private static final FioToken B = new FioToken("bbb");
 
     private final MutableClock clock = new MutableClock();
-    private final TokenThrottle throttle = new TokenThrottle(clock, Duration.ofSeconds(30));
+    private final TokenThrottle<FioToken> throttle = new TokenThrottle<>(clock, Duration.ofSeconds(30));
 
     @Test
     @DisplayName("a token is let through once per 30 seconds, and others are not held up by it")
@@ -36,6 +36,15 @@ class TokenThrottleTest {
         assertEquals(Duration.ZERO, throttle.waitFor(A));
         assertTrue(throttle.tryAcquire(A));
         assertFalse(throttle.tryAcquire(A));
+    }
+
+    @Test
+    @DisplayName("a token keyed by its text works the same, for a caller throttling another bank's tokens too")
+    void byText() {
+        var shared = new TokenThrottle<String>(clock, Duration.ofSeconds(30));
+
+        assertTrue(shared.tryAcquire("eyJhbGciOi.J9-x"));
+        assertFalse(shared.tryAcquire("eyJhbGciOi.J9-x"));
     }
 
     @Test

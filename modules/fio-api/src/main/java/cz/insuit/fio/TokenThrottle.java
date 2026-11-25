@@ -12,15 +12,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * counted together. Asking anyway and handling the 409 works too, but it spends the request the next caller needed:
  * a poller that retries on 409 can starve itself while looking busy.
  *
+ * <p>Keyed by whatever names the token, usually a {@link FioToken}; a caller that also throttles another bank's
+ * tokens through one instance keys it by the token's text instead.
+ *
  * <p>In memory, so it sees only the requests of this JVM. Two instances polling one token still meet a 409 now and
  * then; read it as "another instance got there first".
  */
-public final class TokenThrottle {
+public final class TokenThrottle<K> {
 
     /** The documentation's minimum, and the interval a 409 is measured against. */
     public static final Duration DEFAULT_MINIMUM_INTERVAL = Duration.ofSeconds(30);
 
-    private final ConcurrentHashMap<FioToken, Instant> lastCall = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<K, Instant> lastCall = new ConcurrentHashMap<>();
     private final Clock clock;
     private final Duration minimumInterval;
 
@@ -38,7 +41,7 @@ public final class TokenThrottle {
      * Whether {@code token} may be used now. Records the attempt when it may, so two callers racing on one token
      * cannot both be told yes.
      */
-    public boolean tryAcquire(FioToken token) {
+    public boolean tryAcquire(K token) {
         var now = clock.instant();
         var previous = lastCall.putIfAbsent(token, now);
         if (previous == null) {
@@ -52,7 +55,7 @@ public final class TokenThrottle {
     }
 
     /** How long until {@code token} may be used again; zero when it may be used now. */
-    public Duration waitFor(FioToken token) {
+    public Duration waitFor(K token) {
         var previous = lastCall.get(token);
         if (previous == null) {
             return Duration.ZERO;

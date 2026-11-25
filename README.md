@@ -41,9 +41,11 @@ Other calls: `transactionsForPeriod(token, from, to)` leaves the bookmark alone;
 move it. Every call takes an optional `Consumer<FioCall>` that hears about the request, for a caller's telemetry,
 with the token masked and no movements in it.
 
-Fio allows **one request per token per 30 seconds**. `TokenThrottle` keeps a caller under it:
+Fio allows **one request per token per 30 seconds**. `TokenThrottle` keeps a caller under it, keyed by the token
+(or by its text, when one throttle also guards another bank's tokens):
 
 ```java
+var throttle = new TokenThrottle<FioToken>();
 if (throttle.tryAcquire(token)) { fio.transactionsSinceLastDownload(token); }
 ```
 
