@@ -1,6 +1,6 @@
 # Installing
 
-The client, `cz.insuit:fio-api`, is on this repository's [GitHub Packages](https://github.com/landsman?tab=packages&repo_name=fio-api-java).
+The client, `cz.insuit:fio-api`, and its Spring Boot starter, `cz.insuit:fio-api-spring-boot-starter`, are on this repository's [GitHub Packages](https://github.com/landsman?tab=packages&repo_name=fio-api-java).
 
 **GitHub Packages asks for a token even for a public package**, with the `read:packages` scope, and while this
 repository is private, the token's account needs read access to it. It checks only the token: any non-empty user
@@ -29,7 +29,7 @@ repositories {
 }
 
 dependencies {
-    implementation("cz.insuit:fio-api:0.1.0")
+    implementation("cz.insuit:fio-api-spring-boot-starter:0.1.0") // or fio-api alone
 }
 
 // gh's token, or nothing when gh is missing or signed out: the build then gets GitHub's 401, not a crash.
@@ -73,4 +73,4 @@ and in `~/.m2/settings.xml` a `<server>` with the same `id`, your GitHub user an
 ## Snapshots
 
 None are published: only a tagged release is. To try what is not released yet, `make publish-local` in a checkout
-installs the jar into `~/.m2` as `0.1.0-SNAPSHOT`, where `mavenLocal()` finds it.
+installs the jars into `~/.m2` as `0.1.0-SNAPSHOT`, where `mavenLocal()` finds them.

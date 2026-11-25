@@ -9,6 +9,8 @@ updates:
     commit-message:
       prefix: deps
     ignore:
+      # The starter compiles against the oldest Spring Boot it supports; a bump would raise that floor.
+      - dependency-name: org.springframework.boot:spring-boot-dependencies
       # Named only in the Jackson floor in modules/fio-api/build.gradle.kts, never as a dependency. databind and
       # core are dependencies, versioned by the Jackson BOM; the floor is written so Dependabot skips it.
       - dependency-name: com.fasterxml.jackson.core:jackson-annotations
