@@ -18,6 +18,8 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -74,12 +76,15 @@ class FioAutoConfigurationTest {
     @Test
     @DisplayName("fio.request-timeout reaches the client: a slower answer is no answer")
     void requestTimeoutReachesClient() throws IOException, URISyntaxException {
+        // Held until the test is done rather than slept through: server.stop waits for a running handler.
+        var release = new CountDownLatch(1);
         var server = server(exchange -> {
             try {
-                Thread.sleep(2_000);
+                release.await(10, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
+            // An answer, not a dropped connection: without the timeout this call succeeds and the test fails.
             respond(exchange, EMPTY);
         });
         try {
@@ -88,6 +93,7 @@ class FioAutoConfigurationTest {
                                     () -> context.getBean(FioClient.class).transactionsForPeriod(TOKEN, DAY, DAY))
                             .isInstanceOf(FioException.NoAnswer.class));
         } finally {
+            release.countDown();
             server.stop(0);
         }
     }
