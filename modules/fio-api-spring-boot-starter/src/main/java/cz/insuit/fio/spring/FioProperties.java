@@ -18,4 +18,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record FioProperties(
         @Nullable String token,
         @Nullable URI baseUri,
-        @Nullable Duration requestTimeout) {}
+        @Nullable Duration requestTimeout) {
+
+    /** Says whether a token is set, never which: the bean gets printed by debuggers and by Spring's own logs. */
+    @Override
+    public String toString() {
+        return "FioProperties[token=" + (token == null ? "unset" : "redacted") + ", baseUri=" + baseUri
+                + ", requestTimeout=" + requestTimeout + "]";
+    }
+}

@@ -43,9 +43,12 @@ class FioAutoConfigurationTest {
     @Test
     @DisplayName("fio.token gives a FioToken bean, and a malformed one stops the application")
     void token() {
-        runner.withPropertyValues("fio.token=abc123")
-                .run(context ->
-                        assertThat(context.getBean(FioToken.class).value()).isEqualTo("abc123"));
+        runner.withPropertyValues("fio.token=abc123").run(context -> {
+            assertThat(context.getBean(FioToken.class).value()).isEqualTo("abc123");
+            assertThat(context.getBean(FioProperties.class).toString())
+                    .doesNotContain("abc123")
+                    .contains("token=redacted");
+        });
         runner.withPropertyValues("fio.token=abc/123")
                 .run(context -> assertThat(context).hasFailed());
     }
