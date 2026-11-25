@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: deps
+    ignore:
+      # Named only in the Jackson floor in modules/fio-api/build.gradle.kts, never as a dependency. databind and
+      # core are dependencies, versioned by the Jackson BOM; the floor is written so Dependabot skips it.
+      - dependency-name: com.fasterxml.jackson.core:jackson-annotations
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: deps

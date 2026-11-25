@@ -1,0 +1,79 @@
+# fio-api-java
+
+A read-only client for [Fio banka](https://www.fio.cz/)'s *API Bankovnictví*, for Java 21+ and Kotlin: the
+movements on an account, read with the token its holder issues in internet banking. Its only dependencies are
+Jackson 3 and JSpecify. Published on GitHub Packages, not Maven Central.
+
+Written against the official [API_Bankovnictvi.pdf](https://www.fio.cz/docs/cz/API_Bankovnictvi.pdf), version 1.9
+of 16 October 2025, and responses captured by other clients.
+
+| Read | For |
+|---|---|
+| [How Fio's API behaves](.docs/fio-api.md) | what bites: the bookmark, the status codes, the two shapes of a date |
+| [Installing](.docs/install.md) | the artifact on GitHub Packages, for Gradle and Maven |
+| [Development](.docs/development.md) | build, tests, releasing |
+
+## Use
+
+```java
+var fio = new FioClient();                       // one per application; thread-safe, closeable
+var token = new FioToken(System.getenv("FIO_TOKEN"));
+
+FioAccountStatement statement = fio.transactionsSinceLastDownload(token);
+for (FioTransaction t : statement.transactions()) {
+    store(t.id(), t.date(), t.amount(), t.currency(), t.variableSymbol(), t.rawJson());
+}
+```
+
+**Reading moves Fio's bookmark**, so store before treating a read as done, and wind back when storing fails:
+
+```java
+try {
+    store(fio.transactionsSinceLastDownload(token));
+} catch (FioException.UnreadableSinceLast e) {
+    fio.setLastId(token, lastStoredId);          // Fio may have moved past what it could not give us
+} catch (StorageFailure e) {
+    fio.setLastId(token, lastStoredId);
+}
+```
+
+Other calls: `transactionsForPeriod(token, from, to)` leaves the bookmark alone; `setLastId` and `setLastDate`
+move it. Every call takes an optional `Consumer<FioCall>` that hears about the request, for a caller's telemetry,
+with the token masked and no movements in it.
+
+Fio allows **one request per token per 30 seconds**. `TokenThrottle` keeps a caller under it:
+
+```java
+if (throttle.tryAcquire(token)) { fio.transactionsSinceLastDownload(token); }
+```
+
+## Failures
+
+`FioException` is sealed, one subtype per thing to do, so a `switch` over it is exhaustive:
+
+| Subtype | When | Do |
+|---|---|---|
+| `InvalidToken` | 500: the token does not exist or is inactive | tell the account holder; never retry |
+| `RateLimited` | 409: the 30 seconds were not kept | try on the next tick |
+| `TooManyItems` | 413: more than 50,000 movements | a shorter period |
+| `HistoryLocked` | 422: older than 90 days without the holder's unlock | ask them, or stay within 90 days |
+| `BadRequest` | 404 | a bug, ours or the caller's |
+| `HttpError` | any other status | look at `status()` |
+| `NoAnswer` | timeout, refused connection | retry later |
+| `InvalidResponse` | an answer this library cannot read | report it; nothing to undo |
+| `UnreadableSinceLast` | the same, for the bookmark read | wind the bookmark back |
+
+`error()` holds what Fio said in its error document (`errorCode`, `status`, `message`), when it sent one. No
+message carries the token. An interrupted thread throws `CancellationException`, its flag kept set.
+
+## Kotlin
+
+JSpecify reaches Kotlin as `String` / `String?`, enforced from Kotlin 2.1; on older versions add
+`-Xjspecify-annotations=strict`. The sealed exception is exhaustive in a `when` without `else`.
+
+## Not here
+
+No payment orders: the client has no upload method at all, so ask the holder for the read-only token (*sledování
+účtu*). No MT940, CAMT or GPC: JSON carries the same. No persistence.
+
+Licence: [Apache 2.0](LICENSE)
