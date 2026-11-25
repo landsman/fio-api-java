@@ -21,7 +21,7 @@ var token = new FioToken(System.getenv("FIO_TOKEN"));
 
 FioAccountStatement statement = fio.transactionsSinceLastDownload(token);
 for (FioTransaction t : statement.transactions()) {
-    store(t.id(), t.date(), t.amount(), t.currency(), t.variableSymbol(), t.rawJson());
+    store(t.id(), t.date(), t.amountInMinorUnits(), t.currency(), t.variableSymbol(), t.rawJson());
 }
 ```
 
@@ -30,10 +30,10 @@ for (FioTransaction t : statement.transactions()) {
 ```java
 try {
     store(fio.transactionsSinceLastDownload(token));
-} catch (FioException.UnreadableSinceLast e) {
-    fio.setLastId(token, lastStoredId);          // Fio may have moved past what it could not give us
-} catch (StorageFailure e) {
-    fio.setLastId(token, lastStoredId);
+} catch (FioException.UnreadableSinceLast | StorageFailure e) {
+    // Fio may have moved past what it could not give us, or what we could not keep. Winding back is a request
+    // too: wait out the 30 seconds after the read (throttle.waitFor(token)), or it is a 409.
+    rewindLater(token, lastStoredId);            // then fio.setLastId(token, lastStoredId)
 }
 ```
 
@@ -53,15 +53,15 @@ if (throttle.tryAcquire(token)) { fio.transactionsSinceLastDownload(token); }
 
 | Subtype | When | Do |
 |---|---|---|
-| `InvalidToken` | 500: the token does not exist or is inactive | tell the account holder; never retry |
+| `InvalidToken` | 500: the token does not exist or is inactive | once it lasts for hours, tell the account holder; Fio has answered 500 during outages too |
 | `RateLimited` | 409: the 30 seconds were not kept | try on the next tick |
 | `TooManyItems` | 413: more than 50,000 movements | a shorter period |
 | `HistoryLocked` | 422: older than 90 days without the holder's unlock | ask them, or stay within 90 days |
 | `BadRequest` | 404 | a bug, ours or the caller's |
 | `HttpError` | any other status | look at `status()` |
-| `NoAnswer` | timeout, refused connection | retry later |
+| `NoAnswer` | timeout, refused connection | retry later; on the bookmark read it is `UnreadableSinceLast` instead |
 | `InvalidResponse` | an answer this library cannot read | report it; nothing to undo |
-| `UnreadableSinceLast` | the same, for the bookmark read | wind the bookmark back |
+| `UnreadableSinceLast` | the bookmark read's answer is unreadable or did not arrive whole | wind the bookmark back, 30 seconds later |
 
 `error()` holds what Fio said in its error document (`errorCode`, `status`, `message`), when it sent one. No
 message carries the token. An interrupted thread throws `CancellationException`, its flag kept set.

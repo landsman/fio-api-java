@@ -202,6 +202,52 @@ class FioStatementParserTest {
         assertEquals(Instant.parse("2015-03-29T22:00:00Z"), first.bookedAt());
     }
 
+    @Test
+    @DisplayName("a missing or null list of movements is a quiet account")
+    void emptyShapes() {
+        for (var list : new String[] {
+            "", ",\"transactionList\":null", ",\"transactionList\":{}", ",\"transactionList\":{\"transaction\":null}"
+        }) {
+            var body = "{\"accountStatement\":{\"info\":{}" + list + "}}";
+            assertTrue(FioStatementParser.parse(body).transactions().isEmpty(), body);
+        }
+    }
+
+    @Test
+    @DisplayName("a movement where a list belongs is refused, not read as a quiet account")
+    void movementsNotAList() {
+        var single = movementDated("1340661600000").replace("[{", "{").replace("}]", "}");
+
+        var thrown = assertThrows(FioException.InvalidResponse.class, () -> FioStatementParser.parse(single));
+
+        assertTrue(String.valueOf(thrown.getMessage()).contains("not a list"), thrown.getMessage());
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+            delimiter = '|',
+            value = {
+                "\"column1\":{\"value\":1.00} | \"column1\":{\"value\":\"1,00\"} | 1,00",
+                "\"column22\":{\"value\":7} | \"column22\":{\"value\":\"7a\"} | 7a",
+                "\"column1\":{\"value\":1.00} | \"column1\":{\"value\":1.00},\"column17\":{\"value\":\"x1\"} | x1"
+            })
+    @DisplayName("a number that is there but unreadable is refused with its value, not passed off as absent")
+    void unreadableNumbers(String from, String to, String shown) {
+        var body = movementDated("1340661600000").replace(from, to);
+
+        var thrown = assertThrows(FioException.InvalidResponse.class, () -> FioStatementParser.parse(body));
+
+        assertTrue(String.valueOf(thrown.getMessage()).contains(shown), thrown.getMessage());
+    }
+
+    @Test
+    @DisplayName("an unreadable balance in the header is refused too")
+    void unreadableBalance() {
+        var body = movementDated("1340661600000").replace("\"info\":{}", "\"info\":{\"closingBalance\":\"n/a\"}");
+
+        assertThrows(FioException.InvalidResponse.class, () -> FioStatementParser.parse(body));
+    }
+
     @ParameterizedTest
     @ValueSource(
             strings = {

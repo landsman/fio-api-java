@@ -71,14 +71,28 @@ final class FioStatementParser {
         if (info == null) {
             throw new FioException.InvalidResponse("Fio's statement has no info header", null);
         }
-        var list = statement.path("transactionList").path("transaction");
         var transactions = new ArrayList<FioTransaction>();
-        if (list.isArray()) {
-            for (var node : list) {
-                transactions.add(transaction(node));
-            }
+        for (var node : movements(statement)) {
+            transactions.add(transaction(node));
         }
         return new FioAccountStatement(info(info), List.copyOf(transactions));
+    }
+
+    /**
+     * The movements, or none when {@code transactionList} or its {@code transaction} is missing or {@code null}, as
+     * Fio sends an empty statement. Any other shape is refused: read as empty, it would pass for a quiet account.
+     */
+    private static Iterable<JsonNode> movements(JsonNode statement) {
+        var list = present(statement.path("transactionList"));
+        var movements = list == null ? null : present(list.path("transaction"));
+        if (movements == null) {
+            return List.of();
+        }
+        if (!movements.isArray()) {
+            throw new FioException.InvalidResponse(
+                    "Fio's transactionList.transaction is not a list but " + movements.getNodeType(), null);
+        }
+        return movements;
     }
 
     private static FioAccountInfo info(JsonNode info) {
@@ -180,32 +194,38 @@ final class FioStatementParser {
         return value.isEmpty() ? null : value;
     }
 
+    /** Null when absent; a value that is there but no whole number is refused, not passed off as absent. */
     private static @Nullable Long number(@Nullable JsonNode node) {
-        if (node == null || present(node) == null) {
+        var text = text(node);
+        if (node == null || text == null) {
             return null;
         }
         if (node.isIntegralNumber()) {
             return node.longValue();
         }
         try {
-            return Long.valueOf(node.asString().strip());
+            return Long.valueOf(text);
         } catch (NumberFormatException e) {
-            return null;
+            throw new FioException.InvalidResponse("Fio sent " + text + " where a whole number belongs", e);
         }
     }
 
-    /** Never through a double: a statement that rounds is a statement that is wrong. */
+    /**
+     * Null when absent; a value that is there but no number is refused, not passed off as absent. Never through a
+     * double: a statement that rounds is a statement that is wrong.
+     */
     private static @Nullable BigDecimal decimal(@Nullable JsonNode node) {
-        if (node == null || present(node) == null) {
+        var text = text(node);
+        if (node == null || text == null) {
             return null;
         }
         if (node.isNumber()) {
             return node.decimalValue();
         }
         try {
-            return new BigDecimal(node.asString().strip());
+            return new BigDecimal(text);
         } catch (NumberFormatException e) {
-            return null;
+            throw new FioException.InvalidResponse("Fio sent " + text + " where an amount belongs", e);
         }
     }
 }
