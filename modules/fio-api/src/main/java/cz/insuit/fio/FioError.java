@@ -1,5 +1,7 @@
 package cz.insuit.fio;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 import java.io.StringReader;
 import javax.xml.XMLConstants;
@@ -20,6 +22,10 @@ import org.xml.sax.helpers.DefaultHandler;
  * @param status Fio's status word, such as {@code error}; null when the body had none
  */
 public record FioError(@Nullable Integer code, @Nullable String status, String message) {
+
+    public FioError {
+        requireNonNull(message, "message");
+    }
 
     /** The error in {@code body}, or null when the body is not Fio's error document. Never throws. */
     static @Nullable FioError parse(@Nullable String body) {

@@ -12,13 +12,15 @@ post or library from before that points at nothing.
 | Code | What it means at Fio |
 |---|---|
 | **409** | the 30-second minimum interval for this token was not kept; reads and writes share it |
-| **500** | the token does not exist or is inactive. **Not a server fault.** A token lasts 180 days at most, so this is every token's expected end |
+| **500** | the token does not exist or is inactive. Usually not a server fault: a token lasts 180 days at most, so this is every token's expected end. But Fio has been seen answering 500 while its API was down too |
 | **413** | more than 50,000 movements matched |
 | **422** | older than 90 days, without the unlock the holder grants in internet banking (ten minutes) |
 | **404** | a malformed request |
 
 Reading 500 as "the bank is having a moment" turns the expected end of a token into a poller that hammers a dead
-credential and never tells anybody.
+credential and never tells anybody. Reading one 500 as final turns a night's outage into a dead connection and a
+"your token was refused" message for a token that still works. So wait for the refusal to last, a few hours of polls
+without a success, before telling the holder.
 
 The body of a failure is often Fio's error document:
 
@@ -34,8 +36,13 @@ status. Which code a dead token gets is not known yet; once seen, it can tell a 
 `transactionsSinceLastDownload` advances Fio's server-side bookmark (*zarážka*) whenever the answer holds movements,
 before the caller has stored anything. A read that fails afterwards, storing or parsing, loses those movements
 from that endpoint: still on the account, reachable only through `setLastId` or a period read. So the library
-throws `UnreadableSinceLast` rather than `InvalidResponse` when the bookmark read's answer cannot be read, and the
-caller winds back. An answer without movements leaves the bookmark alone.
+throws `UnreadableSinceLast` rather than `InvalidResponse` or `NoAnswer` when the bookmark read's answer cannot be
+read or did not arrive whole (a timeout may come after Fio served it), and the caller winds back. Winding back is a
+request too, so it waits out the 30 seconds after the failed read, or it is a 409. An answer without movements leaves
+the bookmark alone.
+
+A `transaction` that is there but not a list is refused rather than read as empty, and so is a number that is there
+but unreadable: either would quietly lose movements.
 
 ## A field has two shapes, and both are real
 

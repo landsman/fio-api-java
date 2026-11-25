@@ -28,9 +28,13 @@ public abstract sealed class FioException extends RuntimeException {
     }
 
     /**
-     * HTTP 500: the token does not exist or is no longer active. <b>Not a server fault</b>, and not transient: a token
-     * lasts 180 days at most, so this is the expected end of every token's life. Tell the account holder rather than
-     * retry.
+     * HTTP 500: the token does not exist or is no longer active, as Fio documents it. Usually not a server fault: a
+     * token lasts 180 days at most, so this is the expected end of every token's life. Tell the account holder rather
+     * than retry for ever.
+     *
+     * <p>Fio has also been seen answering 500 while its API was down, so one 500 is not proof. Before telling the
+     * holder or switching the connection off, wait for the refusal to last, such as a few hours of polls without a
+     * success in between.
      */
     public static final class InvalidToken extends FioException {
         public InvalidToken(String message, @Nullable FioError error) {
@@ -108,10 +112,13 @@ public abstract sealed class FioException extends RuntimeException {
     }
 
     /**
-     * A successful answer to {@link FioClient#transactionsSinceLastDownload} that this library cannot read. <b>Fio may
-     * already have moved its bookmark past the movements in it</b>, as it does for every answer that holds any, so
-     * the next read starts after them and they are never offered again. Wind the bookmark back with {@link
-     * FioClient#setLastId} to the last movement stored, or read them with {@link FioClient#transactionsForPeriod}.
+     * {@link FioClient#transactionsSinceLastDownload} got an answer this library cannot read, or no whole answer: a
+     * timeout or a cut connection may come after Fio served the read. <b>Fio may already have moved its bookmark past
+     * the movements in it</b>, as it does for every answer that holds any, so the next read starts after them and they
+     * are never offered again. Wind the bookmark back with {@link FioClient#setLastId} to the last movement stored, or
+     * read them with {@link FioClient#transactionsForPeriod}. Either is a request, so <b>wait 30 seconds after the
+     * failed read</b> or Fio answers 409; {@link TokenThrottle} says when. The cause is the {@link InvalidResponse} or
+     * {@link NoAnswer} this replaces.
      */
     public static final class UnreadableSinceLast extends FioException {
         public UnreadableSinceLast(String message, @Nullable Throwable cause) {

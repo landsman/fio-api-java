@@ -17,6 +17,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -119,6 +120,30 @@ class FioClientTest {
         assertEquals(new FioError(21, "error", "Výpis neexistuje"), thrown.error());
     }
 
+    @Test
+    @DisplayName("an error document needs its message")
+    void errorNeedsMessage() {
+        assertThrows(NullPointerException.class, () -> new FioError(1, "error", nullString()));
+    }
+
+    @SuppressWarnings("NullAway")
+    private static String nullString() {
+        return null;
+    }
+
+    @Test
+    @DisplayName("an error document that repeats the token hands it out masked")
+    void errorDocumentMasked() {
+        status = 500;
+        body = "<response><result><errorCode>1</errorCode><status>error</status>"
+                + "<message>Token t0ken neexistuje</message></result></response>";
+
+        var thrown = assertThrows(FioException.InvalidToken.class, () -> client.transactionsSinceLastDownload(TOKEN));
+
+        assertEquals(
+                "Token *** neexistuje", Objects.requireNonNull(thrown.error()).message());
+    }
+
     @ParameterizedTest
     @ValueSource(
             strings = {
@@ -194,10 +219,25 @@ class FioClientTest {
         var calls = new CopyOnWriteArrayList<FioCall>();
         server.stop(0);
 
-        assertThrows(FioException.NoAnswer.class, () -> client.transactionsSinceLastDownload(TOKEN, calls::add));
+        assertThrows(
+                FioException.NoAnswer.class,
+                () -> client.transactionsForPeriod(
+                        TOKEN, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 1), calls::add));
 
         assertNull(calls.getFirst().status());
         assertNotNull(calls.getFirst().transportError());
+    }
+
+    @Test
+    @DisplayName(
+            "no answer to the bookmark read says the bookmark may have moved: a timeout can come after Fio served it")
+    void noAnswerSinceLast() {
+        server.stop(0);
+
+        var thrown =
+                assertThrows(FioException.UnreadableSinceLast.class, () -> client.transactionsSinceLastDownload(TOKEN));
+
+        assertInstanceOf(FioException.NoAnswer.class, thrown.getCause());
     }
 
     @Test

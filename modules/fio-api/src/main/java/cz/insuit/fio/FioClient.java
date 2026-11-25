@@ -85,14 +85,24 @@ public final class FioClient implements AutoCloseable {
      *
      * @param observer hears about the request whatever its outcome, for the caller's own telemetry; whatever it throws
      *     is ignored
-     * @throws FioException.UnreadableSinceLast when Fio answered but the answer cannot be read; the bookmark may have
-     *     moved, wind it back
+     * @throws FioException.UnreadableSinceLast when the answer cannot be read or did not arrive whole: the bookmark
+     *     may have moved, wind it back
      * @throws FioException when Fio refuses or fails; see its subtypes
      * @throws CancellationException when the thread is interrupted; its interrupt flag stays set
      */
     public FioAccountStatement transactionsSinceLastDownload(FioToken token, Consumer<FioCall> observer) {
-        var body = get(
-                token, "last/" + token.value() + "/transactions.json", FioCallKind.TRANSACTIONS_SINCE_LAST, observer);
+        String body;
+        try {
+            body = get(
+                    token,
+                    "last/" + token.value() + "/transactions.json",
+                    FioCallKind.TRANSACTIONS_SINCE_LAST,
+                    observer);
+        } catch (FioException.NoAnswer e) {
+            // A timeout or a connection cut mid-answer may come after Fio has served the read and moved on.
+            throw new FioException.UnreadableSinceLast(
+                    e.getMessage() + "; Fio may have served it and moved its bookmark anyway", e);
+        }
         try {
             return FioStatementParser.parse(body);
         } catch (FioException.InvalidResponse e) {
@@ -200,7 +210,8 @@ public final class FioClient implements AutoCloseable {
         if (ok) {
             return body;
         }
-        var error = FioError.parse(body);
+        // Masked first: an error that repeats the URL would otherwise hand the token out through error().
+        var error = FioError.parse(body.replace(token.value(), "***"));
         var message = what + " answered " + status;
         throw switch (status) {
             case 500 -> new FioException.InvalidToken(message + ": the token does not exist or is not active", error);

@@ -5,6 +5,7 @@ import static java.util.Objects.requireNonNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Currency;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -64,6 +65,18 @@ public record FioTransaction(
         requireNonNull(amount, "amount");
         requireNonNull(currency, "currency");
         requireNonNull(rawJson, "rawJson");
+    }
+
+    /**
+     * {@link #amount} in the currency's minor units, haléře for CZK, keeping the sign: {@code -15.00 CZK} is {@code
+     * -1500}. Exact, never rounded.
+     *
+     * @throws IllegalArgumentException when {@link #currency} is no ISO 4217 code the JDK knows
+     * @throws ArithmeticException when the amount has more decimals than the currency, or does not fit a long
+     */
+    public long amountInMinorUnits() {
+        int digits = Currency.getInstance(currency).getDefaultFractionDigits();
+        return amount.movePointRight(Math.max(digits, 0)).longValueExact();
     }
 
     /** Only what identifies the movement: the rest names people and their accounts, which a log should not hold. */
