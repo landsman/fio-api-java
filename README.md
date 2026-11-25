@@ -62,7 +62,9 @@ fio:
 ```
 
 An application's own bean of either type replaces the starter's, a `TokenThrottle<String>` too, for one throttle
-that also guards another bank's tokens. Compiled against Spring Boot 3.5, and tested only there so far.
+that also guards another bank's tokens. Spring matches the type argument, so such an app has no
+`TokenThrottle<FioToken>` left and injects its throttle as `TokenThrottle<String>`. Compiled against Spring Boot 3.5,
+and tested only there so far.
 
 ## Failures
 

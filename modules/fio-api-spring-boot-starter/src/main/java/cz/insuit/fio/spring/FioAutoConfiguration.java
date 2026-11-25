@@ -38,7 +38,9 @@ public class FioAutoConfiguration {
     /**
      * Shared, because the 30 seconds are per token across the whole application: one throttle per caller would let
      * each believe it had the token to itself. Any {@code TokenThrottle} bean of the application's replaces it,
-     * such as a {@code TokenThrottle<String>} that also guards another bank's tokens.
+     * such as a {@code TokenThrottle<String>} that also guards another bank's tokens. Spring matches the type
+     * argument, so that application then has no {@code TokenThrottle<FioToken>}: it injects its own throttle by its
+     * own type.
      */
     @Bean
     @ConditionalOnMissingBean(TokenThrottle.class)
