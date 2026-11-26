@@ -53,7 +53,7 @@ final class FioStatementParser {
     private FioStatementParser() {}
 
     /**
-     * @throws FioException.InvalidResponse when the body is not a statement: a half-read statement is worse than
+     * @throws FioInvalidResponseException when the body is not a statement: a half-read statement is worse than
      *     none, since an empty one reads as a quiet account
      */
     static FioAccountStatement parse(String json) {
@@ -61,15 +61,15 @@ final class FioStatementParser {
         try {
             root = JSON.readTree(json);
         } catch (JacksonException e) {
-            throw new FioException.InvalidResponse("Fio answered with a body that is not JSON", e);
+            throw new FioInvalidResponseException("Fio answered with a body that is not JSON", e);
         }
         var statement = present(root.path("accountStatement"));
         if (statement == null) {
-            throw new FioException.InvalidResponse("Fio's answer has no accountStatement", null);
+            throw new FioInvalidResponseException("Fio's answer has no accountStatement", null);
         }
         var info = present(statement.path("info"));
         if (info == null) {
-            throw new FioException.InvalidResponse("Fio's statement has no info header", null);
+            throw new FioInvalidResponseException("Fio's statement has no info header", null);
         }
         var transactions = new ArrayList<FioTransaction>();
         for (var node : movements(statement)) {
@@ -89,7 +89,7 @@ final class FioStatementParser {
             return List.of();
         }
         if (!movements.isArray()) {
-            throw new FioException.InvalidResponse(
+            throw new FioInvalidResponseException(
                     "Fio's transactionList.transaction is not a list but " + movements.getNodeType(), null);
         }
         return movements;
@@ -112,19 +112,19 @@ final class FioStatementParser {
     private static FioTransaction transaction(JsonNode node) {
         var id = number(column(node, 22));
         if (id == null) {
-            throw new FioException.InvalidResponse("A movement has no ID pohybu; refusing to return it unkeyed", null);
+            throw new FioInvalidResponseException("A movement has no ID pohybu; refusing to return it unkeyed", null);
         }
         var dateNode = column(node, 0);
         if (dateNode == null) {
-            throw new FioException.InvalidResponse("Movement " + id + " has no date", null);
+            throw new FioInvalidResponseException("Movement " + id + " has no date", null);
         }
         var amount = decimal(column(node, 1));
         if (amount == null) {
-            throw new FioException.InvalidResponse("Movement " + id + " has no amount", null);
+            throw new FioInvalidResponseException("Movement " + id + " has no amount", null);
         }
         var currency = text(column(node, 14));
         if (currency == null) {
-            throw new FioException.InvalidResponse("Movement " + id + " has no currency", null);
+            throw new FioInvalidResponseException("Movement " + id + " has no currency", null);
         }
         var booked = booked(id, dateNode);
         return new FioTransaction(
@@ -170,8 +170,7 @@ final class FioStatementParser {
             ZoneId zone = parsed.isSupported(ChronoField.OFFSET_SECONDS) ? ZoneOffset.from(parsed) : BANK_ZONE;
             return new Booked(date, date.atStartOfDay(zone).toInstant());
         } catch (DateTimeException e) {
-            throw new FioException.InvalidResponse(
-                    "Movement " + id + " has a date Fio never documented: " + written, e);
+            throw new FioInvalidResponseException("Movement " + id + " has a date Fio never documented: " + written, e);
         }
     }
 
@@ -206,7 +205,7 @@ final class FioStatementParser {
         try {
             return Long.valueOf(text);
         } catch (NumberFormatException e) {
-            throw new FioException.InvalidResponse("Fio sent " + text + " where a whole number belongs", e);
+            throw new FioInvalidResponseException("Fio sent " + text + " where a whole number belongs", e);
         }
     }
 
@@ -225,7 +224,7 @@ final class FioStatementParser {
         try {
             return new BigDecimal(text);
         } catch (NumberFormatException e) {
-            throw new FioException.InvalidResponse("Fio sent " + text + " where an amount belongs", e);
+            throw new FioInvalidResponseException("Fio sent " + text + " where an amount belongs", e);
         }
     }
 }

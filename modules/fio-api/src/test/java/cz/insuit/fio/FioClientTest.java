@@ -93,16 +93,16 @@ class FioClientTest {
     void statuses() {
         // 500 is the expensive one: a token lasts 180 days at most, so a dead token is every token's expected end,
         // and reading it as a server blip polls it forever without telling anybody.
-        assertStatus(500, FioException.InvalidToken.class);
-        assertStatus(409, FioException.RateLimited.class);
-        assertStatus(413, FioException.TooManyItems.class);
-        assertStatus(422, FioException.HistoryLocked.class);
-        assertStatus(404, FioException.BadRequest.class);
-        var other = assertStatus(418, FioException.HttpError.class);
-        assertEquals(418, ((FioException.HttpError) other).status());
+        assertStatus(500, FioInvalidTokenException.class);
+        assertStatus(409, FioRateLimitedException.class);
+        assertStatus(413, FioTooManyItemsException.class);
+        assertStatus(422, FioHistoryLockedException.class);
+        assertStatus(404, FioBadRequestException.class);
+        var other = assertStatus(418, FioHttpErrorException.class);
+        assertEquals(418, ((FioHttpErrorException) other).status());
     }
 
-    private FioException assertStatus(int code, Class<? extends FioException> expected) {
+    private FioApiException assertStatus(int code, Class<? extends FioApiException> expected) {
         status = code;
         body = "";
         return assertThrows(expected, () -> client.transactionsSinceLastDownload(TOKEN));
@@ -115,7 +115,7 @@ class FioClientTest {
         body = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><response><result><errorCode>21"
                 + "</errorCode><status>error</status><message>Výpis neexistuje</message></result></response>";
 
-        var thrown = assertThrows(FioException.InvalidToken.class, () -> client.transactionsSinceLastDownload(TOKEN));
+        var thrown = assertThrows(FioInvalidTokenException.class, () -> client.transactionsSinceLastDownload(TOKEN));
 
         assertEquals(new FioError(21, "error", "Výpis neexistuje"), thrown.error());
     }
@@ -138,7 +138,7 @@ class FioClientTest {
         body = "<response><result><errorCode>1</errorCode><status>error</status>"
                 + "<message>Token t0ken neexistuje</message></result></response>";
 
-        var thrown = assertThrows(FioException.InvalidToken.class, () -> client.transactionsSinceLastDownload(TOKEN));
+        var thrown = assertThrows(FioInvalidTokenException.class, () -> client.transactionsSinceLastDownload(TOKEN));
 
         assertEquals(
                 "Token *** neexistuje", Objects.requireNonNull(thrown.error()).message());
@@ -161,7 +161,7 @@ class FioClientTest {
         status = 500;
         body = errorBody;
 
-        var thrown = assertThrows(FioException.InvalidToken.class, () -> client.transactionsSinceLastDownload(TOKEN));
+        var thrown = assertThrows(FioInvalidTokenException.class, () -> client.transactionsSinceLastDownload(TOKEN));
 
         assertNull(thrown.error());
     }
@@ -172,7 +172,7 @@ class FioClientTest {
         body = "token t0ken is not active";
         for (int code : new int[] {409, 500, 413, 422, 404, 418}) {
             status = code;
-            var thrown = assertThrows(FioException.class, () -> client.transactionsSinceLastDownload(TOKEN));
+            var thrown = assertThrows(FioApiException.class, () -> client.transactionsSinceLastDownload(TOKEN));
             assertFalse(
                     String.valueOf(thrown.getMessage()).contains(TOKEN.value()),
                     code + " leaked the token: " + thrown.getMessage());
@@ -188,9 +188,9 @@ class FioClientTest {
                 + "\"column0\":{\"value\":\"27.07.2012\"},\"column1\":{\"value\":1.00},\"column14\":{\"value\":\"CZK\"}}]}}}";
 
         var thrown =
-                assertThrows(FioException.UnreadableSinceLast.class, () -> client.transactionsSinceLastDownload(TOKEN));
+                assertThrows(FioUnreadableSinceLastException.class, () -> client.transactionsSinceLastDownload(TOKEN));
 
-        assertInstanceOf(FioException.InvalidResponse.class, thrown.getCause());
+        assertInstanceOf(FioInvalidResponseException.class, thrown.getCause());
         assertTrue(String.valueOf(thrown.getMessage()).contains("27.07.2012"), thrown.getMessage());
     }
 
@@ -200,7 +200,7 @@ class FioClientTest {
         body = "not json";
 
         assertThrows(
-                FioException.InvalidResponse.class,
+                FioInvalidResponseException.class,
                 () -> client.transactionsForPeriod(TOKEN, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 2)));
     }
 
@@ -220,7 +220,7 @@ class FioClientTest {
         server.stop(0);
 
         assertThrows(
-                FioException.NoAnswer.class,
+                FioNoAnswerException.class,
                 () -> client.transactionsForPeriod(
                         TOKEN, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 1), calls::add));
 
@@ -235,9 +235,9 @@ class FioClientTest {
         server.stop(0);
 
         var thrown =
-                assertThrows(FioException.UnreadableSinceLast.class, () -> client.transactionsSinceLastDownload(TOKEN));
+                assertThrows(FioUnreadableSinceLastException.class, () -> client.transactionsSinceLastDownload(TOKEN));
 
-        assertInstanceOf(FioException.NoAnswer.class, thrown.getCause());
+        assertInstanceOf(FioNoAnswerException.class, thrown.getCause());
     }
 
     @Test
@@ -254,7 +254,7 @@ class FioClientTest {
 
         status = 500;
         body = "token t0ken is not active";
-        assertThrows(FioException.InvalidToken.class, () -> client.setLastId(TOKEN, 1, calls::add));
+        assertThrows(FioInvalidTokenException.class, () -> client.setLastId(TOKEN, 1, calls::add));
         assertEquals(500, calls.getLast().status());
         assertEquals("token *** is not active", calls.getLast().errorBody());
     }
