@@ -30,7 +30,7 @@ for (FioTransaction t : statement.transactions()) {
 ```java
 try {
     store(fio.transactionsSinceLastDownload(token));
-} catch (FioException.UnreadableSinceLast | StorageFailure e) {
+} catch (FioUnreadableSinceLastException | StorageFailure e) {
     // Fio may have moved past what it could not give us, or what we could not keep. Winding back is a request
     // too: wait out the 30 seconds after the read (throttle.waitFor(token)), or it is a 409.
     rewindLater(token, lastStoredId);            // then fio.setLastId(token, lastStoredId)
@@ -68,19 +68,19 @@ and tested only there so far.
 
 ## Failures
 
-`FioException` is sealed, one subtype per thing to do, so a `switch` over it is exhaustive:
+`FioApiException` is sealed, with one subclass per thing to do, so a `switch` over it is exhaustive:
 
-| Subtype | When | Do |
+| Exception | When | Do |
 |---|---|---|
-| `InvalidToken` | 500: the token does not exist or is inactive | once it lasts for hours, tell the account holder; Fio has answered 500 during outages too |
-| `RateLimited` | 409: the 30 seconds were not kept | try on the next tick |
-| `TooManyItems` | 413: more than 50,000 movements | a shorter period |
-| `HistoryLocked` | 422: older than 90 days without the holder's unlock | ask them, or stay within 90 days |
-| `BadRequest` | 404 | a bug, ours or the caller's |
-| `HttpError` | any other status | look at `status()` |
-| `NoAnswer` | timeout, refused connection | retry later; on the bookmark read it is `UnreadableSinceLast` instead |
-| `InvalidResponse` | an answer this library cannot read | report it; nothing to undo |
-| `UnreadableSinceLast` | the bookmark read's answer is unreadable or did not arrive whole | wind the bookmark back, 30 seconds later |
+| `FioInvalidTokenException` | 500: the token does not exist or is inactive | once it lasts for hours, tell the account holder; Fio has answered 500 during outages too |
+| `FioRateLimitedException` | 409: the 30 seconds were not kept | try on the next tick |
+| `FioTooManyItemsException` | 413: more than 50,000 movements | a shorter period |
+| `FioHistoryLockedException` | 422: older than 90 days without the holder's unlock | ask them, or stay within 90 days |
+| `FioBadRequestException` | 404 | a bug, ours or the caller's |
+| `FioHttpErrorException` | any other status | look at `status()` |
+| `FioNoAnswerException` | timeout, refused connection | retry later; on the bookmark read it is `FioUnreadableSinceLastException` instead |
+| `FioInvalidResponseException` | an answer this library cannot read | report it; nothing to undo |
+| `FioUnreadableSinceLastException` | the bookmark read's answer is unreadable or did not arrive whole | wind the bookmark back, 30 seconds later |
 
 `error()` holds what Fio said in its error document (`errorCode`, `status`, `message`), when it sent one. No
 message carries the token. An interrupted thread throws `CancellationException`, its flag kept set.
@@ -88,7 +88,7 @@ message carries the token. An interrupted thread throws `CancellationException`,
 ## Kotlin
 
 JSpecify reaches Kotlin as `String` / `String?`, enforced from Kotlin 2.1; on older versions add
-`-Xjspecify-annotations=strict`. The sealed exception is exhaustive in a `when` without `else`.
+`-Xjspecify-annotations=strict`. `FioApiException` is exhaustive in a `when` without `else`.
 
 ## Not here
 

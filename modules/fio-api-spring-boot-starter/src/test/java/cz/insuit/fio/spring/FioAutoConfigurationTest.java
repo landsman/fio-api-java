@@ -7,7 +7,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import cz.insuit.fio.FioClient;
-import cz.insuit.fio.FioException;
+import cz.insuit.fio.FioNoAnswerException;
 import cz.insuit.fio.FioToken;
 import cz.insuit.fio.TokenThrottle;
 import java.io.IOException;
@@ -91,7 +91,7 @@ class FioAutoConfigurationTest {
             runner.withPropertyValues("fio.base-uri=" + baseUri(server), "fio.request-timeout=200ms")
                     .run(context -> assertThatThrownBy(
                                     () -> context.getBean(FioClient.class).transactionsForPeriod(TOKEN, DAY, DAY))
-                            .isInstanceOf(FioException.NoAnswer.class));
+                            .isInstanceOf(FioNoAnswerException.class));
         } finally {
             release.countDown();
             server.stop(0);

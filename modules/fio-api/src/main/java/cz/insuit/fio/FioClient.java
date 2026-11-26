@@ -85,9 +85,9 @@ public final class FioClient implements AutoCloseable {
      *
      * @param observer hears about the request whatever its outcome, for the caller's own telemetry; whatever it throws
      *     is ignored
-     * @throws FioException.UnreadableSinceLast when the answer cannot be read or did not arrive whole: the bookmark
+     * @throws FioUnreadableSinceLastException when the answer cannot be read or did not arrive whole: the bookmark
      *     may have moved, wind it back
-     * @throws FioException when Fio refuses or fails; see its subtypes
+     * @throws FioApiException when Fio refuses or fails; see its subtypes
      * @throws CancellationException when the thread is interrupted; its interrupt flag stays set
      */
     public FioAccountStatement transactionsSinceLastDownload(FioToken token, Consumer<FioCall> observer) {
@@ -98,15 +98,15 @@ public final class FioClient implements AutoCloseable {
                     "last/" + token.value() + "/transactions.json",
                     FioCallKind.TRANSACTIONS_SINCE_LAST,
                     observer);
-        } catch (FioException.NoAnswer e) {
+        } catch (FioNoAnswerException e) {
             // A timeout or a connection cut mid-answer may come after Fio has served the read and moved on.
-            throw new FioException.UnreadableSinceLast(
+            throw new FioUnreadableSinceLastException(
                     e.getMessage() + "; Fio may have served it and moved its bookmark anyway", e);
         }
         try {
             return FioStatementParser.parse(body);
-        } catch (FioException.InvalidResponse e) {
-            throw new FioException.UnreadableSinceLast(e.getMessage() + "; Fio may have moved its bookmark past it", e);
+        } catch (FioInvalidResponseException e) {
+            throw new FioUnreadableSinceLastException(e.getMessage() + "; Fio may have moved its bookmark past it", e);
         }
     }
 
@@ -120,8 +120,8 @@ public final class FioClient implements AutoCloseable {
      * and for movements a failed read lost. Older than 90 days needs the account holder's unlock in internet banking.
      *
      * @throws IllegalArgumentException when {@code to} is before {@code from}; no request is made
-     * @throws FioException.HistoryLocked when the period reaches past 90 days without the unlock
-     * @throws FioException when Fio refuses, fails or answers in a shape this library cannot read; see its subtypes
+     * @throws FioHistoryLockedException when the period reaches past 90 days without the unlock
+     * @throws FioApiException when Fio refuses, fails or answers in a shape this library cannot read; see its subtypes
      * @throws CancellationException when the thread is interrupted; its interrupt flag stays set
      */
     public FioAccountStatement transactionsForPeriod(
@@ -142,7 +142,7 @@ public final class FioClient implements AutoCloseable {
      * Moves the bookmark to the movement {@code lastId}, so the next {@link #transactionsSinceLastDownload} returns
      * what came after it. It counts against the same 30 seconds as a read.
      *
-     * @throws FioException when Fio refuses or fails; see its subtypes
+     * @throws FioApiException when Fio refuses or fails; see its subtypes
      * @throws CancellationException when the thread is interrupted; its interrupt flag stays set
      */
     public void setLastId(FioToken token, long lastId, Consumer<FioCall> observer) {
@@ -157,7 +157,7 @@ public final class FioClient implements AutoCloseable {
     /**
      * Moves the bookmark to a day: the next {@link #transactionsSinceLastDownload} returns what was booked after it.
      *
-     * @throws FioException when Fio refuses or fails; see its subtypes
+     * @throws FioApiException when Fio refuses or fails; see its subtypes
      * @throws CancellationException when the thread is interrupted; its interrupt flag stays set
      */
     public void setLastDate(FioToken token, LocalDate date, Consumer<FioCall> observer) {
@@ -187,9 +187,10 @@ public final class FioClient implements AutoCloseable {
                             null,
                             null,
                             e.getClass().getSimpleName()));
-            throw new FioException.NoAnswer(what + " did not get an answer", e);
+            throw new FioNoAnswerException(what + " did not get an answer", e);
         } catch (InterruptedException e) {
-            // Whoever owns the thread asked it to stop; that is not Fio failing, so not a FioException a retry catches.
+            // Whoever owns the thread asked it to stop; that is not Fio failing, so not a FioApiException a retry
+            // catches.
             Thread.currentThread().interrupt();
             var cancelled = new CancellationException(what + " was interrupted");
             cancelled.initCause(e);
@@ -214,12 +215,12 @@ public final class FioClient implements AutoCloseable {
         var error = FioError.parse(body.replace(token.value(), "***"));
         var message = what + " answered " + status;
         throw switch (status) {
-            case 500 -> new FioException.InvalidToken(message + ": the token does not exist or is not active", error);
-            case 409 -> new FioException.RateLimited(message + ": one request per token per 30 seconds", error);
-            case 413 -> new FioException.TooManyItems(message + ": more than 50,000 movements", error);
-            case 422 -> new FioException.HistoryLocked(message + ": older than 90 days needs unlocking", error);
-            case 404 -> new FioException.BadRequest(message + ": Fio did not recognise the request", error);
-            default -> new FioException.HttpError(message, status, error);
+            case 500 -> new FioInvalidTokenException(message + ": the token does not exist or is not active", error);
+            case 409 -> new FioRateLimitedException(message + ": one request per token per 30 seconds", error);
+            case 413 -> new FioTooManyItemsException(message + ": more than 50,000 movements", error);
+            case 422 -> new FioHistoryLockedException(message + ": older than 90 days needs unlocking", error);
+            case 404 -> new FioBadRequestException(message + ": Fio did not recognise the request", error);
+            default -> new FioHttpErrorException(message, status, error);
         };
     }
 

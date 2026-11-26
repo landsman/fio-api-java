@@ -90,8 +90,8 @@ class FioStatementParserTest {
     @ValueSource(strings = {"\"27.07.2012\"", "\"2015-03-30T10:00:00+0200\"", "\"\"", "true"})
     @DisplayName("a date in no documented shape is refused, the value in the message")
     void unknownDate(String written) {
-        var thrown = assertThrows(
-                FioException.InvalidResponse.class, () -> FioStatementParser.parse(movementDated(written)));
+        var thrown =
+                assertThrows(FioInvalidResponseException.class, () -> FioStatementParser.parse(movementDated(written)));
 
         assertTrue(String.valueOf(thrown.getMessage()).contains("date"), thrown.getMessage());
     }
@@ -218,7 +218,7 @@ class FioStatementParserTest {
     void movementsNotAList() {
         var single = movementDated("1340661600000").replace("[{", "{").replace("}]", "}");
 
-        var thrown = assertThrows(FioException.InvalidResponse.class, () -> FioStatementParser.parse(single));
+        var thrown = assertThrows(FioInvalidResponseException.class, () -> FioStatementParser.parse(single));
 
         assertTrue(String.valueOf(thrown.getMessage()).contains("not a list"), thrown.getMessage());
     }
@@ -235,7 +235,7 @@ class FioStatementParserTest {
     void unreadableNumbers(String from, String to, String shown) {
         var body = movementDated("1340661600000").replace(from, to);
 
-        var thrown = assertThrows(FioException.InvalidResponse.class, () -> FioStatementParser.parse(body));
+        var thrown = assertThrows(FioInvalidResponseException.class, () -> FioStatementParser.parse(body));
 
         assertTrue(String.valueOf(thrown.getMessage()).contains(shown), thrown.getMessage());
     }
@@ -245,7 +245,7 @@ class FioStatementParserTest {
     void unreadableBalance() {
         var body = movementDated("1340661600000").replace("\"info\":{}", "\"info\":{\"closingBalance\":\"n/a\"}");
 
-        assertThrows(FioException.InvalidResponse.class, () -> FioStatementParser.parse(body));
+        assertThrows(FioInvalidResponseException.class, () -> FioStatementParser.parse(body));
     }
 
     @ParameterizedTest
@@ -259,6 +259,6 @@ class FioStatementParserTest {
             })
     @DisplayName("something that is not a statement is refused, not half-read")
     void refused(String body) {
-        assertThrows(FioException.InvalidResponse.class, () -> FioStatementParser.parse(body));
+        assertThrows(FioInvalidResponseException.class, () -> FioStatementParser.parse(body));
     }
 }
