@@ -63,6 +63,14 @@ class FioDomesticPaymentTest {
     }
 
     @Test
+    @DisplayName("toString leaves out the payee's account and the texts")
+    void toStringLeavesOutThePayee() {
+        var text = FioImportXmlTest.FULL.toString();
+
+        assertEquals("FioDomesticPayment[123.45 CZK to bank 0300 on 2026-12-01]", text);
+    }
+
+    @Test
     @DisplayName("a payer account failing modulo 11 is refused")
     void refusesAPayerAccountFailingTheCheck() {
         assertThrows(

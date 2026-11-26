@@ -77,6 +77,12 @@ public record FioDomesticPayment(
         requireText("comment", comment);
     }
 
+    /** Leaves out the payee's account and both texts, which name a person, so logging an order leaks neither. */
+    @Override
+    public String toString() {
+        return "FioDomesticPayment[" + amount() + " " + currency + " to bank " + bankCode + " on " + date + "]";
+    }
+
     /** The amount as Fio's XML writes it, {@code 100.00}. */
     String amount() {
         return BigDecimal.valueOf(amountInMinorUnits, currency.getDefaultFractionDigits())
