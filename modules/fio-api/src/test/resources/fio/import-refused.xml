@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<responseImport>
+  <result>
+    <errorCode>1</errorCode>
+    <status>error</status>
+    <message>Nalezené chyby při kontrole příkazů</message>
+  </result>
+  <ordersDetails>
+    <detail id="1">
+      <messages>
+        <message status="error" errorCode="1088">Neplatné číslo účtu příjemce</message>
+        <message status="warning" errorCode="1021">Datum splatnosti je v minulosti</message>
+      </messages>
+    </detail>
+  </ordersDetails>
+</responseImport>

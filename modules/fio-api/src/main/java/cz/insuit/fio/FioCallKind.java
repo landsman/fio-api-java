@@ -13,4 +13,7 @@ public enum FioCallKind {
 
     /** {@code set-last-date/…}, winding the bookmark to a day. */
     SET_LAST_DATE,
+
+    /** {@code import/}, a batch of payment orders sent for signing. */
+    IMPORT,
 }

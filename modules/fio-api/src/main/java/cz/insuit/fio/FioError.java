@@ -32,6 +32,20 @@ public record FioError(@Nullable Integer code, @Nullable String status, String m
         if (body == null || !body.stripLeading().startsWith("<")) {
             return null;
         }
+        var root = root(body);
+        if (root == null) {
+            return null;
+        }
+        var message = text(root, "message");
+        if (message == null) {
+            return null;
+        }
+        var code = text(root, "errorCode");
+        return new FioError(code == null ? null : parseCode(code), text(root, "status"), message);
+    }
+
+    /** The root element of an XML body from Fio, or null when it is not well-formed XML. Never throws. */
+    static @Nullable Element root(String body) {
         try {
             var factory = DocumentBuilderFactory.newInstance();
             // The body comes from the network: no DTD, so no external entity can be read through it.
@@ -41,19 +55,13 @@ public record FioError(@Nullable Integer code, @Nullable String status, String m
             var builder = factory.newDocumentBuilder();
             // The JDK's default handler prints every malformed body to stderr; this one only throws.
             builder.setErrorHandler(new DefaultHandler());
-            var root = builder.parse(new InputSource(new StringReader(body))).getDocumentElement();
-            var message = text(root, "message");
-            if (message == null) {
-                return null;
-            }
-            var code = text(root, "errorCode");
-            return new FioError(code == null ? null : parseCode(code), text(root, "status"), message);
+            return builder.parse(new InputSource(new StringReader(body))).getDocumentElement();
         } catch (ParserConfigurationException | SAXException | IOException e) {
             return null;
         }
     }
 
-    private static @Nullable String text(Element root, String tag) {
+    static @Nullable String text(Element root, String tag) {
         var nodes = root.getElementsByTagName(tag);
         if (nodes.getLength() == 0) {
             return null;

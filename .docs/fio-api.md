@@ -63,10 +63,27 @@ Jackson needs telling twice: `USE_BIG_DECIMAL_FOR_FLOATS`, or `-15.00` is a `dou
 *ID pohybu* (`id`) is unique on the account and never reused: the key to store a movement once. *ID pokynu*
 (`instructionId`) is not: a foreign payment books the transfer and its fee under one instruction.
 
+## An import is a batch to sign, not a payment
+
+`POST import/` takes a multipart form: `token`, `type` (`xml` here; Fio also takes `abo`, `pain001_xml`,
+`pain008_xml`) and the orders as a file named `file`. Fio groups an accepted upload into a batch that a person with
+the right to the account must still sign in internet banking (SMS or Fio podpis); unsigned, nothing is paid. Only a
+token issued with the right to enter orders can import.
+
+The answer is always XML, `responseImport`, whatever the outcome. `status` is `ok`, `warning` (accepted, but a value
+disagrees, such as the currency), `error` (the whole batch refused) or `fatal` (Fio's failure, the whole batch
+refused). `errorCode`: 0 accepted, 1 orders failed the checks, 2 warnings, 11 syntax error, 12 and 14 no orders, 13
+file over 2 MB. Per-order messages sit under `ordersDetails/detail/messages`. The 30 seconds and the HTTP codes are
+the reads': 409, 500 for a dead token.
+
+One limit differs between the PDF and the schema: the PDF gives `comment` 255 characters, `importIB.xsd` 140. The
+client keeps to the schema, which is what Fio validates against. In one file, domestic orders come before euro and
+foreign ones, or Fio refuses it.
+
 ## Prior art
 
 | Library | Note |
 |---|---|
-| [martiner/fio-java](https://github.com/martiner/fio-java) | maintained (0.6.0, August 2026). Spring `RestTemplate`, JAXB over XML, one token per instance. Reads the error document; leaves the 30 seconds, the meaning of 500/413/422 and the bookmark to the caller |
+| [martiner/fio-java](https://github.com/martiner/fio-java) | maintained (0.6.0, August 2026). Spring `RestTemplate`, JAXB over XML, one token per instance. Reads the error document; leaves the 30 seconds, the meaning of 500/413/422 and the bookmark to the caller. No import |
 | [contributte/fio](https://github.com/contributte/fio) | PHP, maintained; no rate limiting |
 | [mhujer/fio-api-php](https://github.com/mhujer/fio-api-php) | PHP, last pushed June 2024, before the URL moved. Its captured responses showed the string date form; two are copied into the tests with the names and accounts replaced, see [the fixtures' README](../modules/fio-api/src/test/resources/fio/README.md) |
