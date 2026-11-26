@@ -40,7 +40,8 @@ public record FioImportResult(
     /**
      * One message about one order.
      *
-     * @param orderId the order's id in the batch, as Fio numbers it; null when Fio sent none
+     * @param orderId the order's id in the batch, as Fio numbers it; null when Fio sent none. Presumably the order's
+     *     position in the list sent, from 1, but no real answer has confirmed that yet
      * @param status {@code ok}, {@code warning}, {@code error} or {@code fatal}; null when Fio sent none
      * @param errorCode Fio's code for the message; null when Fio sent none
      */
