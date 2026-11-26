@@ -1,7 +1,7 @@
 # fio-api-java
 
-A read-only client for [Fio banka](https://www.fio.cz/)'s *API Bankovnictví*, for Java 21+ and Kotlin: the
-movements on an account, read with the token its holder issues in internet banking. Its only dependencies are
+A client for [Fio banka](https://www.fio.cz/)'s *API Bankovnictví*, for Java 21+ and Kotlin: the movements on an
+account, read with the token its holder issues in internet banking, and payment orders sent to it for signing. Its only dependencies are
 Jackson 3 and JSpecify. Published on GitHub Packages, not Maven Central.
 
 Written against the official [API_Bankovnictvi.pdf](https://www.fio.cz/docs/cz/API_Bankovnictvi.pdf), version 1.9
@@ -49,6 +49,28 @@ var throttle = new TokenThrottle<FioToken>();
 if (throttle.tryAcquire(token)) { fio.transactionsSinceLastDownload(token); }
 ```
 
+## Payment orders
+
+`importPayments` sends orders within the Czech Republic as one batch. **Nothing is paid when it returns**: Fio holds
+the batch in internet banking (*Přehledy, Příkazy k podpisu*) until someone with the right to the account signs it.
+It needs the token that can also import orders, not the read-only one.
+
+```java
+var refund = new FioDomesticPayment(
+        "2400222226", Currency.getInstance("CZK"), 12_345,      // from, currency, 123.45 CZK in haléře
+        "2000000608", "0300", LocalDate.now(),                  // to, its bank, due
+        "20261126", null, null,                                 // variable, constant, specific symbol
+        "Refund of order 20261126", null);                      // for the payee, own note
+FioImportResult result = fio.importPayments(token, List.of(refund));
+if (!result.accepted()) { show(result.messages(), result.orderMessages()); }
+```
+
+Fio refusing the orders is an answer (`accepted()` false), not an exception. **After `FioNoAnswerException` or
+`FioInvalidResponseException`, do not send the batch again** before looking in internet banking: Fio may have taken
+it before the answer was lost. The same holds for `FioInvalidTokenException` on an import: Fio documents its 500 as a
+dead token, but a failure while handling the batch would look the same. Keep `instructionIds()`, which find the orders there. Euro and foreign payments are
+not here yet.
+
 ## Spring Boot
 
 `cz.insuit:fio-api-spring-boot-starter` brings the client and gives the application a `FioClient` bean and a shared
@@ -92,7 +114,7 @@ JSpecify reaches Kotlin as `String` / `String?`, enforced from Kotlin 2.1; on ol
 
 ## Not here
 
-No payment orders: the client has no upload method at all, so ask the holder for the read-only token (*sledování
-účtu*). No MT940, CAMT or GPC: JSON carries the same. No persistence.
+No euro (*T2Transaction*) or foreign payments, no direct debits, no ABO or pain.001 upload: the domestic order is
+the one written so far. No MT940, CAMT or GPC: JSON carries the same. No persistence.
 
 Licence: [Apache 2.0](LICENSE)

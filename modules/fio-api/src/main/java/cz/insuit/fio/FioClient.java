@@ -11,16 +11,19 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Reads a Fio account through <i>API Bankovnictví</i>, as documented in
- * <a href="https://www.fio.cz/docs/cz/API_Bankovnictvi.pdf">API_Bankovnictvi.pdf</a> (v1.9, 16 October 2025).
+ * <a href="https://www.fio.cz/docs/cz/API_Bankovnictvi.pdf">API_Bankovnictvi.pdf</a> (v1.9, 16 October 2025), and
+ * sends it payment orders to sign.
  *
- * <p><b>Read-only by design.</b> Fio issues a token that only reads (<i>sledování účtu</i>) and one that can also
- * send payment orders. This client has no way to send anything, so ask the account holder for the first.
+ * <p><b>Ask for the token that only reads</b> (<i>sledování účtu</i>) unless the caller sends orders: Fio issues
+ * that one and one that can also import orders, and only {@link #importPayments} needs the second.
  *
  * <p><b>One request per token per 30 seconds</b>, reads and writes together, or Fio answers 409; {@link
  * TokenThrottle} keeps a caller under it.
@@ -164,14 +167,64 @@ public final class FioClient implements AutoCloseable {
         get(token, "set-last-date/" + token.value() + "/" + date + "/", FioCallKind.SET_LAST_DATE, observer);
     }
 
-    /** No message names the URL: the token is in it, and a message ends up in logs, tickets and screenshots. */
+    /** As {@link #importPayments(FioToken, List, Consumer)}, telling nobody about the call. */
+    public FioImportResult importPayments(FioToken token, List<FioDomesticPayment> payments) {
+        return importPayments(token, payments, FioClient::ignore);
+    }
+
+    /**
+     * Sends payment orders within the Czech Republic as one batch. <b>Nothing is paid yet</b> when this returns: Fio
+     * holds an accepted batch in internet banking (<i>Přehledy, Příkazy k podpisu</i>) until a person with the right
+     * to the account signs it. The token must be the one that can import orders.
+     *
+     * <p>Fio's own refusal of the orders is an answer, not an exception: check {@link FioImportResult#accepted()} and
+     * the messages. It counts against the same 30 seconds as a read.
+     *
+     * <p><b>Do not resend after a {@link FioNoAnswerException} or a {@link FioInvalidResponseException}</b> without
+     * looking in internet banking first: Fio may have taken the batch before the answer was lost, and a second one
+     * signed by mistake pays twice. The same goes for a {@link FioInvalidTokenException}: Fio documents its 500 as a
+     * dead token, but a 500 from a failure while handling the batch would look the same.
+     *
+     * @throws IllegalArgumentException when {@code payments} is empty; no request is made
+     * @throws FioApiException when Fio refuses the request itself or fails; see its subtypes
+     * @throws CancellationException when the thread is interrupted; its interrupt flag stays set
+     */
+    public FioImportResult importPayments(
+            FioToken token, List<FioDomesticPayment> payments, Consumer<FioCall> observer) {
+        if (payments.isEmpty()) {
+            throw new IllegalArgumentException("no payments to import");
+        }
+        var boundary = "fio-" + UUID.randomUUID();
+        var body = multipart(boundary, token, FioImportXml.write(payments));
+        var request = HttpRequest.newBuilder(baseUri.resolve("import/"))
+                .timeout(requestTimeout)
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                .build();
+        return FioImportXml.parse(send(token, request, FioCallKind.IMPORT, observer));
+    }
+
+    /** The form Fio documents: {@code token}, {@code type} and the orders as a file named {@code file}. */
+    private static String multipart(String boundary, FioToken token, String xml) {
+        var part = "--" + boundary + "\r\nContent-Disposition: form-data; name=";
+        return part + "\"token\"\r\n\r\n" + token.value() + "\r\n"
+                + part + "\"type\"\r\n\r\nxml\r\n"
+                + part + "\"file\"; filename=\"orders.xml\"\r\nContent-Type: application/xml\r\n\r\n" + xml + "\r\n"
+                + "--" + boundary + "--\r\n";
+    }
+
     private String get(FioToken token, String path, FioCallKind kind, Consumer<FioCall> observer) {
-        requireNonNull(observer, "observer");
         var request = HttpRequest.newBuilder(baseUri.resolve(path))
                 .timeout(requestTimeout)
                 .header("Accept", "application/json")
                 .GET()
                 .build();
+        return send(token, request, kind, observer);
+    }
+
+    /** No message names the URL: the token is in it, and a message ends up in logs, tickets and screenshots. */
+    private String send(FioToken token, HttpRequest request, FioCallKind kind, Consumer<FioCall> observer) {
+        requireNonNull(observer, "observer");
         var what = kind.name();
         long started = System.nanoTime();
         HttpResponse<String> response;

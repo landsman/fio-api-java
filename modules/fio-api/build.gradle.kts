@@ -2,7 +2,7 @@ plugins {
     `java-library`
 }
 
-description = "A read-only client for Fio banka's API Bankovnictví"
+description = "A client for Fio banka's API Bankovnictví: movements, and payment orders to sign"
 
 dependencies {
     // Nullability annotations are part of the API, so Kotlin callers see String and String? correctly.

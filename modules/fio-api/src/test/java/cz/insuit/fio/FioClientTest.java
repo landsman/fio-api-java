@@ -38,6 +38,8 @@ class FioClientTest {
     private static final FioToken TOKEN = new FioToken("t0ken");
 
     private final List<String> requested = new CopyOnWriteArrayList<>();
+    private volatile String requestBody = "";
+    private volatile String requestType = "";
     private volatile int status = 200;
     private volatile String body = EMPTY;
     private HttpServer server;
@@ -47,7 +49,12 @@ class FioClientTest {
     void start() throws IOException, URISyntaxException {
         server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         server.createContext("/", exchange -> {
-            requested.add(exchange.getRequestURI().toString());
+            requested.add(exchange.getRequestMethod() + " " + exchange.getRequestURI());
+            requestType =
+                    Objects.requireNonNullElse(exchange.getRequestHeaders().getFirst("Content-Type"), "");
+            try (var in = exchange.getRequestBody()) {
+                requestBody = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            }
             var bytes = body.getBytes(StandardCharsets.UTF_8);
             // A body of zero length is sent as -1, or the exchange hangs.
             exchange.sendResponseHeaders(status, bytes.length == 0 ? -1 : bytes.length);
@@ -81,10 +88,10 @@ class FioClientTest {
 
         assertEquals(
                 List.of(
-                        "/v1/rest/last/t0ken/transactions.json",
-                        "/v1/rest/periods/t0ken/2026-01-05/2026-02-10/transactions.json",
-                        "/v1/rest/set-last-id/t0ken/1147608196/",
-                        "/v1/rest/set-last-date/t0ken/2026-03-01/"),
+                        "GET /v1/rest/last/t0ken/transactions.json",
+                        "GET /v1/rest/periods/t0ken/2026-01-05/2026-02-10/transactions.json",
+                        "GET /v1/rest/set-last-id/t0ken/1147608196/",
+                        "GET /v1/rest/set-last-date/t0ken/2026-03-01/"),
                 requested);
     }
 
@@ -275,5 +282,42 @@ class FioClientTest {
         var body = "x".repeat(997) + TOKEN.value();
 
         assertEquals("x".repeat(997) + "***", FioClient.errorExcerpt(body, TOKEN));
+    }
+
+    @Test
+    @DisplayName("an import posts Fio's form, token, type and the orders as a file, and reads the answer")
+    void importsPayments() {
+        body = "<responseImport><result><errorCode>0</errorCode><idInstruction>7</idInstruction>"
+                + "<status>ok</status></result></responseImport>";
+
+        var result = client.importPayments(TOKEN, List.of(FioImportXmlTest.FULL));
+
+        assertEquals(List.of("POST /v1/rest/import/"), requested);
+        assertTrue(requestType.startsWith("multipart/form-data; boundary="), requestType);
+        var boundary = requestType.substring(requestType.indexOf('=') + 1);
+        var part = "--" + boundary + "\r\nContent-Disposition: form-data; name=";
+        assertTrue(requestBody.startsWith(part + "\"token\"\r\n\r\nt0ken\r\n"), requestBody);
+        assertTrue(requestBody.contains(part + "\"type\"\r\n\r\nxml\r\n"), requestBody);
+        assertTrue(requestBody.contains(part + "\"file\"; filename=\"orders.xml\""), requestBody);
+        assertTrue(requestBody.contains("<amount>123.45</amount>"), requestBody);
+        assertTrue(requestBody.endsWith("--" + boundary + "--\r\n"), requestBody);
+        assertTrue(result.accepted());
+        assertEquals(List.of(7L), result.instructionIds());
+    }
+
+    @Test
+    @DisplayName("an import shares the status codes of a read: 409 is the 30 seconds")
+    void importRateLimited() {
+        status = 409;
+        body = "";
+
+        assertThrows(FioRateLimitedException.class, () -> client.importPayments(TOKEN, List.of(FioImportXmlTest.FULL)));
+    }
+
+    @Test
+    @DisplayName("an empty import is refused before any request")
+    void importNothing() {
+        assertThrows(IllegalArgumentException.class, () -> client.importPayments(TOKEN, List.of()));
+        assertEquals(List.of(), requested);
     }
 }

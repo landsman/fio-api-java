@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<responseImport>
+  <result>
+    <errorCode>0</errorCode>
+    <idInstruction>105909498</idInstruction>
+    <idInstruction>105909499</idInstruction>
+    <status>ok</status>
+    <sums>
+      <sum id="CZK">
+        <sumCredit>0.00</sumCredit>
+        <sumDebet>123.45</sumDebet>
+      </sum>
+    </sums>
+  </result>
+  <ordersDetails>
+    <detail id="1">
+      <messages>
+        <message status="ok" errorCode="0">OK</message>
+      </messages>
+    </detail>
+  </ordersDetails>
+</responseImport>

@@ -7,3 +7,10 @@
 
 The real-world ones are why a string date and `{"transaction": []}` are read: the documentation's examples show
 neither.
+
+## Import
+
+| File | From |
+|---|---|
+| `schema/importIB.xsd`, `schema/fio_xml_type.xsd`, `schema/responseImportIB.xsd` | Fio's schemas as published at `https://www.fio.cz/schema/`, downloaded 2026-11-26. The written orders and the answers below are validated against them |
+| `import-accepted.xml`, `import-refused.xml` | written for these tests from `responseImportIB.xsd` and the error codes in the documentation's section 6: no real answer to an import has been captured yet, so the per-order codes and texts are invented |
