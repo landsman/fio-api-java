@@ -104,8 +104,8 @@ public record FioDomesticPayment(
     }
 
     /**
-     * A control character or a lone surrogate would make the XML malformed, and Fio counts characters, not UTF-16
-     * units.
+     * A control character, a lone surrogate, U+FFFE or U+FFFF would make the XML malformed, and Fio counts
+     * characters, not UTF-16 units.
      */
     private static void requireText(String field, @Nullable String value) {
         if (value == null) {
@@ -117,8 +117,9 @@ public record FioDomesticPayment(
         if (value.chars().anyMatch(Character::isISOControl)) {
             throw new IllegalArgumentException(field + " holds a control character");
         }
-        if (value.codePoints().anyMatch(c -> Character.getType(c) == Character.SURROGATE)) {
-            throw new IllegalArgumentException(field + " holds a lone surrogate");
+        if (value.codePoints()
+                .anyMatch(c -> Character.getType(c) == Character.SURROGATE || c == 0xFFFE || c == 0xFFFF)) {
+            throw new IllegalArgumentException(field + " holds a character XML cannot carry");
         }
     }
 }

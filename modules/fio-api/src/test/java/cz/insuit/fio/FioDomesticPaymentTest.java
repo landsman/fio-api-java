@@ -90,12 +90,14 @@ class FioDomesticPaymentTest {
 
     @Test
     @DisplayName(
-            "a message over 140 characters, or with a control character or a lone surrogate, is refused; 140 with diacritics passes")
+            "a message over 140 characters, or with a character XML cannot carry, is refused; 140 with diacritics passes")
     void message() {
         payment(1, "2000000608", null, "ž".repeat(140));
         assertThrows(IllegalArgumentException.class, () -> payment(1, "2000000608", null, "x".repeat(141)));
         assertThrows(IllegalArgumentException.class, () -> payment(1, "2000000608", null, "line\nbreak"));
         assertThrows(IllegalArgumentException.class, () -> payment(1, "2000000608", null, "half \uD83D"));
+        assertThrows(IllegalArgumentException.class, () -> payment(1, "2000000608", null, "not \uFFFE"));
+        assertThrows(IllegalArgumentException.class, () -> payment(1, "2000000608", null, "not \uFFFF"));
         payment(1, "2000000608", null, "whole \uD83D\uDE00");
     }
 
