@@ -23,8 +23,9 @@ import org.jspecify.annotations.Nullable;
  * @param variableSymbol up to 10 digits, or null
  * @param constantSymbol up to 4 digits, or null
  * @param specificSymbol up to 10 digits, or null
- * @param messageForRecipient what the payee sees, up to 140 characters, or null
- * @param comment the payer's own note on the order, up to 140 characters, or null
+ * @param messageForRecipient what the payee sees, up to 140 characters, or null; Fio's schema types it
+ *     {@code xs:token}, so runs of spaces collapse to one and the ends are trimmed
+ * @param comment the payer's own note on the order, up to 140 characters, or null; spaces collapse as above
  */
 public record FioDomesticPayment(
         String accountFrom,
@@ -87,7 +88,10 @@ public record FioDomesticPayment(
         }
     }
 
-    /** A control character would make the XML malformed, and Fio counts characters, not UTF-16 units. */
+    /**
+     * A control character or a lone surrogate would make the XML malformed, and Fio counts characters, not UTF-16
+     * units.
+     */
     private static void requireText(String field, @Nullable String value) {
         if (value == null) {
             return;
@@ -97,6 +101,9 @@ public record FioDomesticPayment(
         }
         if (value.chars().anyMatch(Character::isISOControl)) {
             throw new IllegalArgumentException(field + " holds a control character");
+        }
+        if (value.codePoints().anyMatch(c -> Character.getType(c) == Character.SURROGATE)) {
+            throw new IllegalArgumentException(field + " holds a lone surrogate");
         }
     }
 }

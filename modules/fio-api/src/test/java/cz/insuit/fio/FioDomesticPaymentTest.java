@@ -60,11 +60,14 @@ class FioDomesticPaymentTest {
     }
 
     @Test
-    @DisplayName("a message over 140 characters, or with a control character, is refused; 140 with diacritics passes")
+    @DisplayName(
+            "a message over 140 characters, or with a control character or a lone surrogate, is refused; 140 with diacritics passes")
     void message() {
         payment(1, "2000000699", null, "ž".repeat(140));
         assertThrows(IllegalArgumentException.class, () -> payment(1, "2000000699", null, "x".repeat(141)));
         assertThrows(IllegalArgumentException.class, () -> payment(1, "2000000699", null, "line\nbreak"));
+        assertThrows(IllegalArgumentException.class, () -> payment(1, "2000000699", null, "half \uD83D"));
+        payment(1, "2000000699", null, "whole \uD83D\uDE00");
     }
 
     private static FioDomesticPayment payment(
