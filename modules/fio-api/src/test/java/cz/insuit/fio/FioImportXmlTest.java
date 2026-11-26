@@ -27,10 +27,10 @@ import org.xml.sax.SAXException;
 class FioImportXmlTest {
 
     static final FioDomesticPayment FULL = new FioDomesticPayment(
-            "2400222222",
+            "2400222226",
             Currency.getInstance("CZK"),
             12_345,
-            "2212-2000000699",
+            "2217-2000000608",
             "0300",
             LocalDate.of(2026, 12, 1),
             "1234567890",
@@ -40,10 +40,10 @@ class FioImportXmlTest {
             "refund 7");
 
     private static final FioDomesticPayment MINIMAL = new FioDomesticPayment(
-            "2400222222",
+            "2400222226",
             Currency.getInstance("CZK"),
             1,
-            "2000000699",
+            "2000000608",
             "0800",
             LocalDate.of(2026, 12, 1),
             null,

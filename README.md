@@ -57,8 +57,8 @@ It needs the token that can also import orders, not the read-only one.
 
 ```java
 var refund = new FioDomesticPayment(
-        "2400222222", Currency.getInstance("CZK"), 12_345,      // from, currency, 123.45 CZK in haléře
-        "2000000699", "0300", LocalDate.now(),                  // to, its bank, due
+        "2400222226", Currency.getInstance("CZK"), 12_345,      // from, currency, 123.45 CZK in haléře
+        "2000000608", "0300", LocalDate.now(),                  // to, its bank, due
         "20261126", null, null,                                 // variable, constant, specific symbol
         "Refund of order 20261126", null);                      // for the payee, own note
 FioImportResult result = fio.importPayments(token, List.of(refund));
