@@ -101,6 +101,17 @@ class FioImportXmlTest {
                 result.orderMessages().getFirst());
     }
 
+    @Test
+    @DisplayName("a per-order code beyond an int is dropped, not thrown")
+    void dropsAnOutOfRangeOrderCode() {
+        var result = FioImportXml.parse("<responseImport><result><errorCode>1</errorCode><status>error</status>"
+                + "</result><ordersDetails><detail id=\"1\"><messages>"
+                + "<message status=\"error\" errorCode=\"99999999999\">x</message>"
+                + "</messages></detail></ordersDetails></responseImport>");
+
+        assertEquals(List.of(new FioImportResult.OrderMessage(1L, "error", null, "x")), result.orderMessages());
+    }
+
     @ParameterizedTest
     @ValueSource(
             strings = {

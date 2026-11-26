@@ -89,11 +89,13 @@ final class FioImportXml {
                 var list = child(detail, "messages");
                 for (var message : list == null ? List.<Element>of() : children(list, "message")) {
                     var code = number(message.getAttribute("errorCode"));
+                    // An unreadable or out-of-range per-order code is dropped like an unreadable id, never thrown.
+                    var intCode = code == null || code != code.intValue() ? null : code.intValue();
                     var messageStatus = message.getAttribute("status");
                     orderMessages.add(new FioImportResult.OrderMessage(
                             orderId,
                             messageStatus.isEmpty() ? null : messageStatus,
-                            code == null ? null : Math.toIntExact(code),
+                            intCode,
                             message.getTextContent().strip()));
                 }
             }
