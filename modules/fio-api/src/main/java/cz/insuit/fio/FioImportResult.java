@@ -13,19 +13,21 @@ import org.jspecify.annotations.Nullable;
  *     {@code 11} a syntax error, {@code 12} and {@code 14} no orders, {@code 13} a file over 2 MB
  * @param status {@code ok}, {@code warning} (accepted, but a value disagrees, such as the currency), {@code error}
  *     (the whole batch refused) or {@code fatal} (Fio's own failure, the whole batch refused), as Fio sent it
- * @param instructionId Fio's id of the batch, to find it in internet banking; null when none was created
+ * @param instructionIds Fio's ids of what it created, to find the orders in internet banking; empty when none was
+ *     created, and more than one when Fio splits the batch, which its schema allows
  * @param messages what Fio said about the batch as a whole
  * @param orderMessages what Fio said about single orders
  */
 public record FioImportResult(
         int errorCode,
         String status,
-        @Nullable Long instructionId,
+        List<Long> instructionIds,
         List<String> messages,
         List<OrderMessage> orderMessages) {
 
     public FioImportResult {
         requireNonNull(status, "status");
+        instructionIds = List.copyOf(instructionIds);
         messages = List.copyOf(messages);
         orderMessages = List.copyOf(orderMessages);
     }

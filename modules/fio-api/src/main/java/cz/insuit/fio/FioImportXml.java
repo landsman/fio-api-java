@@ -73,7 +73,6 @@ final class FioImportXml {
         if (result == null || errorCode == null || status == null) {
             throw new FioInvalidResponseException("the import's answer has no errorCode or status", null);
         }
-        var instruction = FioError.text(result, "idInstruction");
         var messages = new ArrayList<String>();
         for (var message : children(result, "message")) {
             var text = message.getTextContent().strip();
@@ -101,12 +100,11 @@ final class FioImportXml {
             }
         }
         try {
-            return new FioImportResult(
-                    Integer.parseInt(errorCode),
-                    status,
-                    instruction == null ? null : Long.valueOf(instruction),
-                    messages,
-                    orderMessages);
+            var instructionIds = new ArrayList<Long>();
+            for (var id : children(result, "idInstruction")) {
+                instructionIds.add(Long.valueOf(id.getTextContent().strip()));
+            }
+            return new FioImportResult(Integer.parseInt(errorCode), status, instructionIds, messages, orderMessages);
         } catch (NumberFormatException e) {
             throw new FioInvalidResponseException("the import's answer holds a number this library cannot read", e);
         }

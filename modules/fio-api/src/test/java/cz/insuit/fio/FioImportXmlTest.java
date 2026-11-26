@@ -2,7 +2,6 @@ package cz.insuit.fio;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -70,7 +69,7 @@ class FioImportXmlTest {
     }
 
     @Test
-    @DisplayName("an accepted batch: its id, status and per-order messages")
+    @DisplayName("an accepted batch: every instruction id, status and per-order messages")
     void readsAnAcceptedBatch() throws Exception {
         var body = fixture("import-accepted.xml");
         validate("responseImportIB.xsd", body);
@@ -79,7 +78,7 @@ class FioImportXmlTest {
 
         assertTrue(result.accepted());
         assertEquals(0, result.errorCode());
-        assertEquals(105909498L, result.instructionId());
+        assertEquals(List.of(105909498L, 105909499L), result.instructionIds());
         assertEquals(List.of(new FioImportResult.OrderMessage(1L, "ok", 0, "OK")), result.orderMessages());
     }
 
@@ -93,7 +92,7 @@ class FioImportXmlTest {
 
         assertFalse(result.accepted());
         assertEquals(1, result.errorCode());
-        assertNull(result.instructionId());
+        assertEquals(List.of(), result.instructionIds());
         assertEquals(List.of("Nalezené chyby při kontrole příkazů"), result.messages());
         assertEquals(2, result.orderMessages().size());
         assertEquals(

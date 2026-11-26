@@ -302,7 +302,7 @@ class FioClientTest {
         assertTrue(requestBody.contains("<amount>123.45</amount>"), requestBody);
         assertTrue(requestBody.endsWith("--" + boundary + "--\r\n"), requestBody);
         assertTrue(result.accepted());
-        assertEquals(7L, result.instructionId());
+        assertEquals(List.of(7L), result.instructionIds());
     }
 
     @Test

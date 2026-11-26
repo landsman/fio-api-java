@@ -68,7 +68,7 @@ if (!result.accepted()) { show(result.messages(), result.orderMessages()); }
 Fio refusing the orders is an answer (`accepted()` false), not an exception. **After `FioNoAnswerException` or
 `FioInvalidResponseException`, do not send the batch again** before looking in internet banking: Fio may have taken
 it before the answer was lost. The same holds for `FioInvalidTokenException` on an import: Fio documents its 500 as a
-dead token, but a failure while handling the batch would look the same. Keep `instructionId()`, which finds the batch there. Euro and foreign payments are
+dead token, but a failure while handling the batch would look the same. Keep `instructionIds()`, which find the orders there. Euro and foreign payments are
 not here yet.
 
 ## Spring Boot
