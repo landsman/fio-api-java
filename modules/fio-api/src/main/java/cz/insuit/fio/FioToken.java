@@ -4,7 +4,7 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * The token an account holder issues in Fio's internet banking. A type of its own so its {@code toString()} never
- * shows it: Fio takes the token in the URL path, so it is a credential that would otherwise end up in every log line
+ * shows it: Fio takes the token in the URL path (or the import's form), so it is a credential that would otherwise end up in every log line
  * that prints a request.
  */
 public record FioToken(String value) {
