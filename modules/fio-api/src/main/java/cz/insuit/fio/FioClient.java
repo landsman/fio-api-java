@@ -182,7 +182,8 @@ public final class FioClient implements AutoCloseable {
      *
      * <p><b>Do not resend after a {@link FioNoAnswerException} or a {@link FioInvalidResponseException}</b> without
      * looking in internet banking first: Fio may have taken the batch before the answer was lost, and a second one
-     * signed by mistake pays twice.
+     * signed by mistake pays twice. The same goes for a {@link FioInvalidTokenException}: Fio documents its 500 as a
+     * dead token, but a 500 from a failure while handling the batch would look the same.
      *
      * @throws IllegalArgumentException when {@code payments} is empty; no request is made
      * @throws FioApiException when Fio refuses the request itself or fails; see its subtypes
