@@ -15,5 +15,32 @@ reads; the build fails while it is stale.
 
 Only a tag releases: merging to `main` publishes nothing. `make release` asks for the tag, suggesting the next
 patch, refuses one that exists or a checkout that is not a clean `origin/main`, tags, waits for
-[release.yml](../.github/workflows/release.yml) to publish the jar to GitHub Packages and writes the release page,
-a pre-release while it is 0.x. A version, once published, cannot be published again; the next fix is the next tag.
+[release.yml](../.github/workflows/release.yml) to publish the jars to Maven Central and writes the release page,
+a pre-release while it is 0.x. **Central is immutable**: a version, once published, can never be replaced or
+deleted, and the next fix is the next tag. A `-rc` tag (`v0.3.0-rc1`) tries the pipeline without taking a real
+version number.
+
+Up to 0.2.0 releases went to GitHub Packages, and stay there; from 0.3.0 on only Central has them.
+
+### Maven Central, set up once
+
+None of this is in code, so it is written down here. The namespace and the key also serve the other `cz.insuit`
+libraries.
+
+1. **Namespace.** On the [Central Portal](https://central.sonatype.com/), signed in, *Namespaces → Add namespace*
+   `cz.insuit`, then add the TXT record it shows to `insuit.cz` and press *Verify*.
+2. **User token.** *Account → Generate User Token*. Its two halves go into the repository secrets
+   `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`; keep a copy in 1Password, the Portal shows it once.
+3. **Signing key**, kept in 1Password, never in a repo:
+
+   ```sh
+   gpg --quick-gen-key "Michal Landsman (release signing)" ed25519 sign 3y
+   gpg --keyserver keys.openpgp.org --send-keys <key id>   # then confirm the e-mail keys.openpgp.org sends
+   gpg --armor --export-secret-keys <key id> | gh secret set SIGNING_KEY -R landsman/fio-api-java
+   gh secret set SIGNING_KEY_PASSWORD -R landsman/fio-api-java   # its passphrase, typed
+   ```
+
+   The token secrets go in the same way: `gh secret set MAVEN_CENTRAL_USERNAME -R landsman/fio-api-java`.
+
+Without the signing key the build still publishes to `~/.m2` (`make publish-local`), unsigned; Central refuses
+an unsigned upload, so a release without the secrets fails at the Portal's validation, before anything is public.
