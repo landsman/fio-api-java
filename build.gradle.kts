@@ -89,7 +89,7 @@ subprojects {
                     developer {
                         id = "landsman"
                         name = "Michal Landsman"
-                        url = "https://github.com/landsman"
+                        url = "https://www.insuit.cz"
                     }
                 }
                 scm {
