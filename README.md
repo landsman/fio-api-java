@@ -2,7 +2,7 @@
 
 A client for [Fio banka](https://www.fio.cz/)'s *API Bankovnictví*, for Java 21+ and Kotlin: the movements on an
 account, read with the token its holder issues in internet banking, and payment orders sent to it for signing. Its only dependencies are
-Jackson 3 and JSpecify. Published on GitHub Packages, not Maven Central.
+Jackson 3 and JSpecify. Published on Maven Central.
 
 Written against the official [API_Bankovnictvi.pdf](https://www.fio.cz/docs/cz/API_Bankovnictvi.pdf), version 1.9
 of 16 October 2025, and responses captured by other clients.
@@ -10,7 +10,7 @@ of 16 October 2025, and responses captured by other clients.
 | Read | For |
 |---|---|
 | [How Fio's API behaves](.docs/fio-api.md) | what bites: the bookmark, the status codes, the two shapes of a date |
-| [Installing](.docs/install.md) | the artifact on GitHub Packages, for Gradle and Maven |
+| [Installing](.docs/install.md) | the dependency line for Gradle and Maven |
 | [Development](.docs/development.md) | build, tests, releasing |
 
 ## Use

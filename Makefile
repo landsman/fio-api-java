@@ -20,8 +20,8 @@ lock: ## rewrite modules/fio-api/gradle.lockfile after a dependency changes, the
 release: ## tag origin/main, asking which version, wait for release.yml to publish it, write the release page; TAG=v0.1.0 answers
 	./bin/release.sh
 
-publish: ## build and publish the jar to GitHub Packages, as the release workflow does; RELEASE_VERSION=v0.1.0 releases
-	./gradlew build publish $(if $(RELEASE_VERSION),-PreleaseVersion=$(RELEASE_VERSION:v%=%))
+publish: ## build, sign and publish the jars to Maven Central, as the release workflow does; RELEASE_VERSION=v0.1.0 releases
+	./gradlew build publishToMavenCentral $(if $(RELEASE_VERSION),-PreleaseVersion=$(RELEASE_VERSION:v%=%))
 
 publish-local: ## install the jar into ~/.m2, to try it in another project without a token
 	./gradlew publishToMavenLocal
