@@ -28,19 +28,22 @@ None of this is in code, so it is written down here. The namespace and the key a
 libraries.
 
 1. **Namespace.** On the [Central Portal](https://central.sonatype.com/), signed in, *Namespaces → Add namespace*
-   `cz.insuit`, then add the TXT record it shows to `insuit.cz` and press *Verify*.
+   `cz.insuit`, then add the TXT record it shows to `insuit.cz` and press *Verify*. The record lives in the
+   Terraform of `insuit.cz` ([homelab#633](https://github.com/landsman/homelab/pull/633)).
 2. **User token.** *Account → Generate User Token*. Its two halves go into the repository secrets
    `MAVEN_CENTRAL_USERNAME` and `MAVEN_CENTRAL_PASSWORD`; keep a copy in 1Password, the Portal shows it once.
 3. **Signing key**, kept in 1Password, never in a repo:
 
    ```sh
-   gpg --quick-gen-key "Michal Landsman (release signing)" ed25519 sign 3y
-   gpg --keyserver keys.openpgp.org --send-keys <key id>   # then confirm the e-mail keys.openpgp.org sends
+   gpg --quick-gen-key "Michal Landsman (release signing)" rsa4096 sign 3y
+   gpg --keyserver keyserver.ubuntu.com --send-keys <key id>
    gpg --armor --export-secret-keys <key id> | gh secret set SIGNING_KEY -R landsman/fio-api-java
    gh secret set SIGNING_KEY_PASSWORD -R landsman/fio-api-java   # its passphrase, typed
    ```
 
-   The token secrets go in the same way: `gh secret set MAVEN_CENTRAL_USERNAME -R landsman/fio-api-java`.
+   RSA and a primary key that signs, no subkey: Central's
+   [GPG page](https://central.sonatype.org/publish/requirements/gpg/) shows RSA and verifies against the primary
+   key only. The token secrets go in the same way: `gh secret set MAVEN_CENTRAL_USERNAME -R landsman/fio-api-java`.
 
 Without the signing key the build still publishes to `~/.m2` (`make publish-local`), unsigned; Central refuses
 an unsigned upload, so a release without the secrets fails at the Portal's validation, before anything is public.
