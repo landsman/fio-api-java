@@ -1,3 +1,4 @@
+import com.vanniktech.maven.publish.DeploymentValidation
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import net.ltgt.gradle.errorprone.CheckSeverity
 import net.ltgt.gradle.errorprone.errorprone
@@ -65,8 +66,9 @@ subprojects {
         // Published to Maven Central through the Central Portal; .docs/development.md says how a release is cut.
         apply(plugin = "com.vanniktech.maven.publish")
         configure<MavenPublishBaseExtension> {
-            // Released as soon as the Portal has validated it: the tag was the decision.
-            publishToMavenCentral(automaticRelease = true)
+            // Released as soon as the Portal has validated it: the tag was the decision. The job waits until Central
+            // has published it, so a refused or stuck deployment fails the release run, and no webhook is needed.
+            publishToMavenCentral(automaticRelease = true, validateDeployment = DeploymentValidation.PUBLISHED)
             // Central refuses unsigned artifacts. The key comes from the environment (.docs/development.md);
             // without one, publishToMavenLocal still works, unsigned.
             if (providers.gradleProperty("signingInMemoryKey").isPresent) {
